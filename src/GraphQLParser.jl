@@ -1,5 +1,11 @@
 module GraphQLParser
 
-# Write your package code here.
+using AutoHashEquals
+using Parsers
+
+include("utils.jl")
+include("strings.jl")
+include("types.jl")
+include("parser.jl")
 
 end
