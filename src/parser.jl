@@ -5,7 +5,7 @@
 # - assumes that pos is the first character of what it is trying to parse (i.e. not an ignored charactaer)
 # - returns pos at the position just after it has finished reading
 
-function read(str::AbstractString)
+function parse(str::AbstractString)
     buf = codeunits(str)
     len = length(buf)
 
@@ -13,11 +13,11 @@ function read(str::AbstractString)
     @eof 
     @skip_ignored
 
-    definitions, pos = read_definitions(buf, pos, len)
+    definitions, pos = parse_definitions(buf, pos, len)
     return Document(definitions)
 end
 
-function read_definitions(buf, pos, len)
+function parse_definitions(buf, pos, len)
     b = getbyte(buf, pos)
     @skip_ignored
     
@@ -25,7 +25,7 @@ function read_definitions(buf, pos, len)
 
     # Check for shorthand
     if b == UInt8('{')
-        operation, pos = read_operation(buf, pos, len)
+        operation, pos = parse_operation(buf, pos, len)
         push!(definitions, operation)
         if pos <= len
             !only_ignored_left(buf, pos, len) && invalid("Shorthand operation only allowed when documet contains only one operation", buf, pos)
@@ -36,13 +36,13 @@ function read_definitions(buf, pos, len)
     else
         while pos <= len
             # operation type
-            definition_type, _ = read_name(buf, pos, len)
+            definition_type, _ = parse_name(buf, pos, len)
             definition_type ∉ ("query", "mutation", "subscription", "fragment") && invalid("Definition type can't be $definition_type", buf, pos)
             if definition_type == "fragment"
-                fragment, pos = read_fragment_definition(buf, pos, len)
+                fragment, pos = parse_fragment_definition(buf, pos, len)
                 push!(definitions, fragment)
             else
-                operation, pos = read_operation(buf, pos, len)
+                operation, pos = parse_operation(buf, pos, len)
                 push!(definitions, operation)
             end
             only_ignored_left(buf, pos, len) && return definitions, pos
@@ -52,16 +52,15 @@ function read_definitions(buf, pos, len)
     return definitions, pos
 end
 
-function read_operation(buf, pos, len)
+function parse_operation(buf, pos, len)
     b = getbyte(buf, pos)
-    @skip_ignored
     if b == UInt8('{')
         operation_type = "query"
     elseif !isnamestart(b)
         invalid("Expected name start character", buf, pos)
     else
         # operation type
-        operation_type, pos = read_name(buf, pos, len)
+        operation_type, pos = parse_name(buf, pos, len)
         operation_type ∉ ("query", "mutation", "subscription") && throw(ArgumentError("operation type can't be $operation_type"))
     end
 
@@ -70,7 +69,7 @@ function read_operation(buf, pos, len)
 
     if isnamestart(b)
         # name (optional)
-        name, pos = read_name(buf, pos, len)
+        name, pos = parse_name(buf, pos, len)
     else
         name = nothing
     end
@@ -79,44 +78,43 @@ function read_operation(buf, pos, len)
     b = getbyte(buf, pos)
 
     if b == UInt('(')
-        variables, pos = read_variable_definitions(buf, pos, len)
+        variables, pos = parse_variable_definitions(buf, pos, len)
     else
         variables = nothing
     end
 
-    selection_set, pos = read_selection_set(buf, pos, len)
+    selection_set, pos = parse_selection_set(buf, pos, len)
     return Operation(operation_type, name, variables, nothing, selection_set), pos
 
 end
 
-function read_fragment_definition(buf, pos, len)
-    definition_type, pos = read_name(buf, pos, len)
+function parse_fragment_definition(buf, pos, len)
+    definition_type, pos = parse_name(buf, pos, len)
     definition_type != "fragment" && invalid("Fragment definition must start with 'fragment'", buf, pos)
     @eof
     @skip_ignored
-    name, pos = read_name(buf, pos, len)
+    name, pos = parse_name(buf, pos, len)
     @eof
     @skip_ignored
-    on, pos = read_name(buf, pos, len)
+    on, pos = parse_name(buf, pos, len)
     on != "on" && invalid("Fragment definition must have form 'FragmentName on NamedTime'", buf, pos)
     @eof
     @skip_ignored
-    named_type, pos = read_name(buf, pos, len)
+    named_type, pos = parse_name(buf, pos, len)
     @eof
     @skip_ignored
-    b = getbyte(buf, pos) # technically included in skip_ignored?
     if b == UInt('@')
-        directives, pos = read_directives(buf, pos, len)
+        directives, pos = parse_directives(buf, pos, len)
     else
         directives = nothing
     end
     @eof
     @skip_ignored
-    selection_set, pos = read_selection_set(buf, pos, len)
+    selection_set, pos = parse_selection_set(buf, pos, len)
     return FragmentDefinition(name, named_type, directives, selection_set), pos
 end
 
-function read_variable_definitions(buf, pos, len)
+function parse_variable_definitions(buf, pos, len)
     b = getbyte(buf, pos)
     if b != UInt('(') # redundant check?
         invalid("Variable definitions must start with '('", buf, pos)
@@ -137,7 +135,7 @@ function read_variable_definitions(buf, pos, len)
         @eof
         @skip_ignored
 
-        name, pos = read_name(buf, pos, len)
+        name, pos = parse_name(buf, pos, len)
 
         @eof
         @skip_ignored
@@ -151,7 +149,7 @@ function read_variable_definitions(buf, pos, len)
         @eof
         @skip_ignored
 
-        type, pos = read_type(buf, pos, len)
+        type, pos = parse_type(buf, pos, len)
 
         @eof
         @skip_ignored
@@ -162,7 +160,7 @@ function read_variable_definitions(buf, pos, len)
             pos += 1
             @eof
             @skip_ignored
-            value, pos = read_value(buf, pos, len)
+            value, pos = parse_value(buf, pos, len)
         else
             value = nothing
         end
@@ -172,7 +170,7 @@ function read_variable_definitions(buf, pos, len)
             pos += 1
             @eof
             @skip_ignored
-            directive, pos = read_directives(buf, pos, len)
+            directive, pos = parse_directives(buf, pos, len)
         else
             directive = nothing
         end
@@ -188,16 +186,16 @@ function read_variable_definitions(buf, pos, len)
     invalid(error_text, buf, pos)
 end
 
-function read_directives(buf, pos, len)
+function parse_directives(buf, pos, len)
     directives = Directive[]
     while pos <= len && getbyte(buf, pos) == UInt('@')
-        directive, pos = read_directive(buf, pos, len)
+        directive, pos = parse_directive(buf, pos, len)
         push!(directives, directive)
     end
     return directives, pos
 end
 
-function read_directive(buf, pos, len)
+function parse_directive(buf, pos, len)
     b = getbyte(buf, pos)
     if b != UInt('@') # redundant check?
         invalid("Directives must start with '@'", buf, pos)
@@ -207,7 +205,7 @@ function read_directive(buf, pos, len)
     @eof
     @skip_ignored
 
-    name, pos = read_name(buf, pos, len)
+    name, pos = parse_name(buf, pos, len)
 
     if pos > len
         return Directive(name, nothing), pos
@@ -215,14 +213,14 @@ function read_directive(buf, pos, len)
 
     @skip_ignored
     if b == UInt('(')
-        arguments, pos = read_arguments(buf, pos, len)
+        arguments, pos = parse_arguments(buf, pos, len)
     end
 
     return Directive(name, arguments), pos
 
 end
 
-function read_type(buf, pos, len)
+function parse_type(buf, pos, len)
     type_str = ""
     b = getbyte(buf, pos)
     if b == UInt('[')
@@ -230,7 +228,7 @@ function read_type(buf, pos, len)
         pos += 1
         @eof
         @skip_ignored
-        name, pos = read_type(buf, pos, len)
+        name, pos = parse_type(buf, pos, len)
         type_str *= name
         @eof
         @skip_ignored
@@ -248,7 +246,7 @@ function read_type(buf, pos, len)
         type_str *= "]"
         pos += 1
     else
-        name, pos = read_name(buf, pos, len)
+        name, pos = parse_name(buf, pos, len)
         type_str *= name
     end
     if pos > len
@@ -262,7 +260,7 @@ function read_type(buf, pos, len)
     return type_str, pos
 end
 
-function read_name(buf, pos, len)
+function parse_name(buf, pos, len)
     b = getbyte(buf, pos)
     @skip_ignored
 
@@ -283,7 +281,7 @@ function read_name(buf, pos, len)
     return name, pos
 end
 
-function read_selection_set(buf, pos, len)
+function parse_selection_set(buf, pos, len)
     b = getbyte(buf, pos)
     @skip_ignored
     if b !== UInt8('{')
@@ -297,7 +295,7 @@ function read_selection_set(buf, pos, len)
 
     selections = Selection[]
     while b !== UInt8('}')
-        selection, pos = read_selection(buf, pos, len)
+        selection, pos = parse_selection(buf, pos, len)
         push!(selections, selection)
         @eof
         b = getbyte(buf, pos)
@@ -308,17 +306,17 @@ function read_selection_set(buf, pos, len)
     return SelectionSet(selections), pos
 end
 
-function read_selection(buf, pos, len)
+function parse_selection(buf, pos, len)
     b = getbyte(buf, pos)
     if b == UInt('.') && getbyte(buf, pos+1) == UInt('.') && getbyte(buf, pos+2) == UInt('.')
-        return read_fragment(buf, pos, len)
+        return parse_fragment(buf, pos, len)
     else
         # Field
-        return read_field(buf, pos, len)
+        return parse_field(buf, pos, len)
     end
 end
 
-function read_fragment(buf, pos, len)
+function parse_fragment(buf, pos, len)
     b = getbyte(buf, pos)
     if !(b == UInt('.') && getbyte(buf, pos+1) == UInt('.') && getbyte(buf, pos+2) == UInt('.'))
         # Are these and similar conditions necessary if we're already checking further up?
@@ -329,13 +327,13 @@ function read_fragment(buf, pos, len)
     @skip_ignored
     b = getbyte(buf, pos)
     if isnamestart(b)
-        name, pos = read_name(buf, pos, len)
+        name, pos = parse_name(buf, pos, len)
         if name !== "on"
             @eof
             @skip_ignored
             b = getbyte(buf, pos)
             if b == UInt('@')
-                directives, pos = read_directives(buf, pos, len)
+                directives, pos = parse_directives(buf, pos, len)
             else
                 directives = nothing
             end
@@ -345,14 +343,14 @@ function read_fragment(buf, pos, len)
         # Inline fragment starting with type condition
         @eof
         @skip_ignored
-        named_type, pos = read_name(buf, pos, len)
+        named_type, pos = parse_name(buf, pos, len)
     else
         named_type = nothing
     end
 
     # Only get here with inline fragment
     if b == UInt('@')
-        directives, pos = read_directives(buf, pos, len)
+        directives, pos = parse_directives(buf, pos, len)
     else
         directives = nothing
     end
@@ -361,11 +359,11 @@ function read_fragment(buf, pos, len)
     @skip_ignored
     b = getbyte(buf, pos)
 
-    selection_set, pos = read_selection_set(buf, pos, len)
+    selection_set, pos = parse_selection_set(buf, pos, len)
     return InlineFragment(named_type, directives, selection_set), pos
 end
 
-function read_number(buf, pos, len)
+function parse_number(buf, pos, len)
     b = getbyte(buf, pos)
 
     number_start = pos
@@ -416,7 +414,7 @@ function read_number(buf, pos, len)
     return value, pos
 end
 
-function read_string(buf, pos, len)
+function parse_string(buf, pos, len)
     b = getbyte(buf, pos)
     escaped = false
     if b == UInt('"') && getbyte(buf, pos+1) == UInt('"') && getbyte(buf, pos+2) == UInt('"')
@@ -490,7 +488,7 @@ function read_string(buf, pos, len)
     end
 end
 
-function read_arguments(buf, pos, len)
+function parse_arguments(buf, pos, len)
     b = getbyte(buf, pos)
     if b != UInt('(')
         invalid("Arguments must start with (", buf, pos)
@@ -504,7 +502,7 @@ function read_arguments(buf, pos, len)
     arguments = Argument[]
 
     while b!= UInt(')')
-        argument, pos = read_argument(buf, pos, len)
+        argument, pos = parse_argument(buf, pos, len)
         push!(arguments, argument)
         @eof
         @skip_ignored
@@ -516,9 +514,9 @@ function read_arguments(buf, pos, len)
 
     return arguments, pos
 end
-function read_argument(buf, pos, len)
+function parse_argument(buf, pos, len)
     # Get name (either name)
-    name, pos = read_name(buf, pos, len)
+    name, pos = parse_name(buf, pos, len)
     b = getbyte(buf, pos)
     @skip_ignored
 
@@ -532,15 +530,15 @@ function read_argument(buf, pos, len)
     @skip_ignored
 
     # Get value
-    value, pos = read_value(buf, pos, len)
+    value, pos = parse_value(buf, pos, len)
 
     return Argument(name, value), pos
 end
 
-function read_value(buf, pos, len)
+function parse_value(buf, pos, len)
     b = getbyte(buf, pos)
     if isdigit(Char(b)) || b == UInt('-')
-        value, pos = read_number(buf, pos, len)
+        value, pos = parse_number(buf, pos, len)
     elseif b == UInt('t') && getbyte(buf, pos+1) == UInt('r') && getbyte(buf, pos+2) == UInt('u') && getbyte(buf, pos+3) == UInt('e')
         # will fail if shorter than this
         value = true
@@ -552,23 +550,23 @@ function read_value(buf, pos, len)
         value = nothing
         pos += 4
     elseif b == UInt('"')
-        value, pos = read_string(buf, pos, len)
-        @eof # needed as not checked in read_string
+        value, pos = parse_string(buf, pos, len)
+        @eof # needed as not checked in parse_string
     elseif b == UInt('[')
-        value, pos = read_list(buf, pos, len)
+        value, pos = parse_list(buf, pos, len)
     elseif b == UInt('{')
         # Input object
-        value, pos = read_input_object(buf, pos, len)
+        value, pos = parse_input_object(buf, pos, len)
     elseif isnamestart(b)
         # enum
-        value_str, pos = read_name(buf, pos, len)
+        value_str, pos = parse_name(buf, pos, len)
         value = Enum(value_str)
     elseif b == UInt('$')
         # variable
         pos += 1
         @eof
         @skip_ignored
-        name, pos = read_name(buf, pos, len)
+        name, pos = parse_name(buf, pos, len)
         value = Variable(name)
     else
         invalid("Could not parse value", buf, pos)
@@ -577,7 +575,7 @@ function read_value(buf, pos, len)
     return value, pos
 end
 
-function read_input_object(buf, pos, len)
+function parse_input_object(buf, pos, len)
     b = getbyte(buf, pos)
     if b != UInt('{')
         invalid("Input object must start with {", buf, pos)
@@ -594,7 +592,7 @@ function read_input_object(buf, pos, len)
             invalid("Expected name start character or '}'", buf, pos)
         end
 
-        name, pos = read_name(buf, pos, len)
+        name, pos = parse_name(buf, pos, len)
 
         @eof
         @skip_ignored
@@ -608,7 +606,7 @@ function read_input_object(buf, pos, len)
         b = getbyte(buf, pos)
         @skip_ignored
 
-        value, pos = read_value(buf, pos, len)
+        value, pos = parse_value(buf, pos, len)
         push!(object_fields, ObjectField(name, value))
         @eof
         @skip_ignored
@@ -621,7 +619,7 @@ function read_input_object(buf, pos, len)
     return InputObject(object_fields), pos
 end
 
-function read_list(buf, pos, len)
+function parse_list(buf, pos, len)
     b = getbyte(buf, pos)
     if b != UInt('[')
         invalid("List must start with [", buf, pos)
@@ -636,7 +634,7 @@ function read_list(buf, pos, len)
     
     first_element = true
     while b != UInt(']')
-        value, pos = read_value(buf, pos, len)
+        value, pos = parse_value(buf, pos, len)
         push!(list, value)
         !first_element && @assert typeof(value) == typeof(first(list))
         @eof
@@ -649,9 +647,9 @@ function read_list(buf, pos, len)
     return list, pos
 end
 
-function read_field(buf, pos, len)
+function parse_field(buf, pos, len)
     # Get first name (either name or alias)
-    name, pos = read_name(buf, pos, len)
+    name, pos = parse_name(buf, pos, len)
     alias::Union{String, Nothing} = nothing
     if pos > len
         # Shouldn't really happen but useful for tests
@@ -669,7 +667,7 @@ function read_field(buf, pos, len)
         b = getbyte(buf, pos)
         @skip_ignored
         alias = name
-        name, pos = read_name(buf, pos, len)
+        name, pos = parse_name(buf, pos, len)
     end
     if pos > len
         # Shouldn't really happen but useful for tests
@@ -681,7 +679,7 @@ function read_field(buf, pos, len)
 
     # Check for arguments
     if b == UInt8('(')
-        arguments, pos = read_arguments(buf, pos, len)
+        arguments, pos = parse_arguments(buf, pos, len)
     else
         arguments = nothing
     end
@@ -690,7 +688,7 @@ function read_field(buf, pos, len)
 
     # Check for directives
     if b == UInt('@')
-        directives = read_directives(buf, pos, len)
+        directives = parse_directives(buf, pos, len)
     else
         directives = nothing
     end
@@ -698,7 +696,7 @@ function read_field(buf, pos, len)
     # Check for selection set
     if b == UInt8('{')
         # SelectionSet
-        selection_set, pos = read_selection_set(buf, pos, len)
+        selection_set, pos = parse_selection_set(buf, pos, len)
     else
         selection_set = nothing
     end
