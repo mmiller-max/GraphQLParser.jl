@@ -11,9 +11,6 @@ end
     str = "n"
     @test GraphQLParser.parse_name(default_args(str)...)[1] == "n"
 
-    str = " \t\r\nname}"
-    @test GraphQLParser.read_name(default_args(str)...)[1]  == "name"
-
     str = "1name"
     @test_throws ArgumentError GraphQLParser.parse_name(default_args(str)...)
 end

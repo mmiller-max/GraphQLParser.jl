@@ -19,8 +19,6 @@ end
 
 function parse_definitions(buf, pos, len)
     b = getbyte(buf, pos)
-    @skip_ignored
-    
     definitions = Definition[]
 
     # Check for shorthand
@@ -241,8 +239,6 @@ end
 
 function parse_name(buf, pos, len)
     b = getbyte(buf, pos)
-    @skip_ignored
-
     if !isnamestart(b)
         invalid("Expected name start character", buf, pos)
     end
