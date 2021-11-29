@@ -1,8 +1,9 @@
 # This approach heavily borrows from JSON3, with some changes
 # for GraphQL specifics and other simplifications
 
-# Each read_{type} function returns pos at the position just after
-# it has finished reading
+# Each parse_{type} function
+# - assumes that pos is the first character of what it is trying to parse (i.e. not an ignored charactaer)
+# - returns pos at the position just after it has finished reading
 
 function read(str::AbstractString)
     buf = codeunits(str)
