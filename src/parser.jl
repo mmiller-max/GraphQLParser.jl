@@ -132,7 +132,7 @@ function parse_variable_definitions(buf, pos, len)
             invalid("Variable name and type must be separated by ':'", buf, pos)
         end
 
-        pos += 1  # Move past :
+        pos += 1  # Move past ':'
         @eof_skip_ignored
 
         type, pos = parse_type(buf, pos, len)
@@ -478,7 +478,7 @@ function parse_arguments(buf, pos, len)
     end
 
     isempty(arguments) && invalid("Expected at least one argument", buf, pos)
-    # Move past )
+    # Move past ')'
     pos +=1 
 
     return arguments, pos
@@ -578,7 +578,7 @@ function parse_input_object(buf, pos, len)
         b = getbyte(buf, pos)
     end
 
-    # Move past }
+    # Move past '}'
     pos += 1
 
     return InputObject(object_fields), pos
@@ -604,7 +604,7 @@ function parse_list(buf, pos, len)
         @eof_skip_ignored
     end
 
-    # Move past ]
+    # Move past ']'
     pos += 1
 
     return list, pos
