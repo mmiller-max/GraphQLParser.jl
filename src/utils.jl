@@ -33,14 +33,22 @@ macro skip_ignored()
         while isnoncommentignored(b) || iscommentstart(b)
             if iscommentstart(b)
                 pos += 1
+                line += 1
                 @eof
                 b = getbyte(buf, pos)
                 while iscommentcontinue(b)
                     pos += 1
+                    line += 1
                     @eof
                     b = getbyte(buf, pos)
                 end
             else
+                if islineterminator(b)
+                    line += 1
+                    column = 1
+                else
+                    column += 1
+                end
                 pos += 1
                 @eof
                 b = getbyte(buf, pos)

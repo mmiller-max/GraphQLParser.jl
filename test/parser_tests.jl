@@ -1,7 +1,7 @@
 function default_args(str)
     buf = codeunits(str)
     len = length(buf)
-    return buf, 1, len
+    return buf, 1, 1, 1, len
 end
 
 @testset "name" begin
@@ -123,19 +123,19 @@ end
     @testset "block" begin
         buf = [0x22, 0x22, 0x22, 0x61, 0x22, 0x22, 0x22] # """a"""
         len = length(buf)
-        @test GraphQLParser.parse_string(buf, 1, len)[1] == "a"
+        @test GraphQLParser.parse_string(buf, 1, 1, 1, len)[1] == "a"
 
         buf = [0x22, 0x22, 0x22, 0x61, 0x09, 0x22, 0x22, 0x22] # """a\t"""
         len = length(buf)
-        @test GraphQLParser.parse_string(buf, 1, len)[1] == "a\t"
+        @test GraphQLParser.parse_string(buf, 1, 1, 1, len)[1] == "a\t"
 
         buf = [0x22, 0x22, 0x22, 0x5c, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22] # """\""""""
         len = length(buf)
-        @test GraphQLParser.parse_string(buf, 1, len)[1] == "\"\"\""
+        @test GraphQLParser.parse_string(buf, 1, 1, 1, len)[1] == "\"\"\""
 
         buf = [0x22, 0x22, 0x22, 0x5c, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22] # """\""""""
         len = length(buf)
-        @test GraphQLParser.parse_string(buf, 1, len)[1] == "\"\"\""
+        @test GraphQLParser.parse_string(buf, 1, 1, 1, len)[1] == "\"\"\""
     end  
 end
 
@@ -502,4 +502,22 @@ end
     }
     """
     @test GraphQLParser.parse(str_25) == GraphQLParser.parse(str_26)
+end
+
+@testset "Line and column" begin
+    str = "name"
+    name, pos, line, column = GraphQLParser.parse_name(default_args(str)...)
+    @test pos == 5
+    @test line == 1
+    @test column == 5
+    str = "{\nname\n}"
+    name, pos, line, column = GraphQLParser.parse_selection_set(default_args(str)...)
+    @test pos == 9
+    @test line == 3
+    @test column == 2
+    str = "{a(b:\"\"\"\nn\n\nh\n\"\"\")}"
+    name, pos, line, column = GraphQLParser.parse_selection_set(default_args(str)...)
+    @test pos == 20
+    @test line == 5
+    @test column == 6
 end

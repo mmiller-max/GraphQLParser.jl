@@ -10,47 +10,49 @@ function parse(str::AbstractString)
     len = length(buf)
 
     pos = 1
+    line = 1
+    column = 1
     @eof 
     @skip_ignored
 
-    definitions, pos = parse_definitions(buf, pos, len)
+    definitions, pos, line, column = parse_definitions(buf, pos, line, column, len)
     return Document(definitions)
 end
 
-function parse_definitions(buf, pos, len)
+function parse_definitions(buf, pos, line, column, len)
     b = getbyte(buf, pos)
     definitions = Definition[]
 
     # Check for shorthand
     if b == UInt8('{')
-        operation, pos = parse_operation(buf, pos, len)
+        operation, pos, line, column = parse_operation(buf, pos, line, column, len)
         push!(definitions, operation)
         if pos <= len
             !only_ignored_left(buf, pos, len) && invalid("Shorthand operation only allowed when document contains only one operation", buf, pos)
         end
-        return definitions, pos
+        return definitions, pos, line, column
     elseif !isnamestart(b)
         invalid("Expected name start character at start of definition", buf, pos)
     else
         while pos <= len
             # operation type
-            definition_type, _ = parse_name(buf, pos, len)
+            definition_type, _, line, column = parse_name(buf, pos, line, column, len)
             definition_type ∉ ("query", "mutation", "subscription", "fragment") && invalid("Definition type can't be $definition_type", buf, pos)
             if definition_type == "fragment"
-                fragment, pos = parse_fragment_definition(buf, pos, len)
+                fragment, pos, line, column = parse_fragment_definition(buf, pos, line, column, len)
                 push!(definitions, fragment)
             else
-                operation, pos = parse_operation(buf, pos, len)
+                operation, pos, line, column = parse_operation(buf, pos, line, column, len)
                 push!(definitions, operation)
             end
-            only_ignored_left(buf, pos, len) && return definitions, pos
+            only_ignored_left(buf, pos, len) && return definitions, pos, line, column
             @skip_ignored
         end
     end
-    return definitions, pos
+    return definitions, pos, line, column
 end
 
-function parse_operation(buf, pos, len)
+function parse_operation(buf, pos, line, column, len)
     b = getbyte(buf, pos)
     if b == UInt8('{')
         operation_type = "query"
@@ -58,7 +60,7 @@ function parse_operation(buf, pos, len)
         invalid("Expected name start character", buf, pos)
     else
         # operation type
-        operation_type, pos = parse_name(buf, pos, len)
+        operation_type, pos, line, column = parse_name(buf, pos, line, column, len)
         operation_type ∉ ("query", "mutation", "subscription") && throw(ArgumentError("operation type can't be $operation_type"))
     end
 
@@ -66,7 +68,7 @@ function parse_operation(buf, pos, len)
 
     if isnamestart(b)
         # name (optional)
-        name, pos = parse_name(buf, pos, len)
+        name, pos, line, column = parse_name(buf, pos, line, column, len)
     else
         name = nothing
     end
@@ -74,45 +76,46 @@ function parse_operation(buf, pos, len)
     @eof_skip_ignored
 
     if b == UInt('(')
-        variables, pos = parse_variable_definitions(buf, pos, len)
+        variables, pos, line, column = parse_variable_definitions(buf, pos, line, column, len)
     else
         variables = nothing
     end
 
     @eof_skip_ignored
 
-    selection_set, pos = parse_selection_set(buf, pos, len)
-    return Operation(operation_type, name, variables, nothing, selection_set), pos
+    selection_set, pos, line, column = parse_selection_set(buf, pos, line, column, len)
+    return Operation(operation_type, name, variables, nothing, selection_set), pos, line, column
 end
 
-function parse_fragment_definition(buf, pos, len)
-    definition_type, pos = parse_name(buf, pos, len)
+function parse_fragment_definition(buf, pos, line, column, len)
+    definition_type, pos, line, column = parse_name(buf, pos, line, column, len)
     definition_type != "fragment" && invalid("Fragment definition must start with 'fragment'", buf, pos)
     @eof_skip_ignored
-    name, pos = parse_name(buf, pos, len)
+    name, pos, line, column = parse_name(buf, pos, line, column, len)
     @eof_skip_ignored
-    on, pos = parse_name(buf, pos, len)
+    on, pos, line, column = parse_name(buf, pos, line, column, len)
     on != "on" && invalid("Fragment definition must have form 'FragmentName on NamedTime'", buf, pos)
     @eof_skip_ignored
-    named_type, pos = parse_name(buf, pos, len)
+    named_type, pos, line, column = parse_name(buf, pos, line, column, len)
     @eof_skip_ignored
     if b == UInt('@')
-        directives, pos = parse_directives(buf, pos, len)
+        directives, pos, line, column = parse_directives(buf, pos, line, column, len)
     else
         directives = nothing
     end
     @eof_skip_ignored
-    selection_set, pos = parse_selection_set(buf, pos, len)
-    return FragmentDefinition(name, named_type, directives, selection_set), pos
+    selection_set, pos, line, column = parse_selection_set(buf, pos, line, column, len)
+    return FragmentDefinition(name, named_type, directives, selection_set), pos, line, column
 end
 
-function parse_variable_definitions(buf, pos, len)
+function parse_variable_definitions(buf, pos, line, column, len)
     b = getbyte(buf, pos)
     if b != UInt('(') # redundant check?
         invalid("Variable definitions must start with '('", buf, pos)
     end
 
     pos += 1
+    column += 1
     @eof_skip_ignored
 
     variables_defs = VariableDefinition[]
@@ -122,9 +125,10 @@ function parse_variable_definitions(buf, pos, len)
         end
 
         pos += 1
+        column += 1
         @eof_skip_ignored
 
-        name, pos = parse_name(buf, pos, len)
+        name, pos, line, column = parse_name(buf, pos, line, column, len)
 
         @eof_skip_ignored
 
@@ -133,17 +137,19 @@ function parse_variable_definitions(buf, pos, len)
         end
 
         pos += 1  # Move past ':'
+        column += 1
         @eof_skip_ignored
 
-        type, pos = parse_type(buf, pos, len)
+        type, pos, line, column = parse_type(buf, pos, line, column, len)
 
         @eof_skip_ignored
 
         # default value
         if b == UInt('=')
             pos += 1
+            column += 1
             @eof_skip_ignored
-            value, pos = parse_value(buf, pos, len)
+            value, pos, line, column = parse_value(buf, pos, line, column, len)
         else
             value = nothing
         end
@@ -151,8 +157,9 @@ function parse_variable_definitions(buf, pos, len)
         # directives
         if b == UInt('@')
             pos += 1
+            column += 1
             @eof_skip_ignored
-            directive, pos = parse_directives(buf, pos, len)
+            directive, pos, line, column = parse_directives(buf, pos, line, column, len)
         else
             directive = nothing
         end
@@ -162,58 +169,59 @@ function parse_variable_definitions(buf, pos, len)
         b = getbyte(buf, pos)
     end
     pos += 1 # move past )
-    return variables_defs, pos
-@label invalid
-    invalid(error_text, buf, pos)
+    column += 1
+    return variables_defs, pos, line, column
 end
 
-function parse_directives(buf, pos, len)
+function parse_directives(buf, pos, line, column, len)
     directives = Directive[]
     while pos <= len && getbyte(buf, pos) == UInt('@')
-        directive, pos = parse_directive(buf, pos, len)
+        directive, pos, line, column = parse_directive(buf, pos, line, column, len)
         push!(directives, directive)
     end
-    return directives, pos
+    return directives, pos, line, column
 end
 
-function parse_directive(buf, pos, len)
+function parse_directive(buf, pos, line, column, len)
     b = getbyte(buf, pos)
     if b != UInt('@') # redundant check?
         invalid("Directives must start with '@'", buf, pos)
     end
 
     pos += 1
+    column += 1
     @eof_skip_ignored
 
-    name, pos = parse_name(buf, pos, len)
+    name, pos, line, column = parse_name(buf, pos, line, column, len)
 
     if pos > len
-        return Directive(name, nothing), pos
+        return Directive(name, nothing), pos, line, column
     end
 
     @skip_ignored
     if b == UInt('(')
-        arguments, pos = parse_arguments(buf, pos, len)
+        arguments, pos, line, column = parse_arguments(buf, pos, line, column, len)
     end
 
-    return Directive(name, arguments), pos
-
+    return Directive(name, arguments), pos, line, column
 end
 
-function parse_type(buf, pos, len)
+function parse_type(buf, pos, line, column, len)
     type_str = ""
     b = getbyte(buf, pos)
     if b == UInt('[')
         type_str *= "["
         pos += 1
+        column += 1
         @eof_skip_ignored
-        name, pos = parse_type(buf, pos, len)
+        name, pos, line, column = parse_type(buf, pos, line, column, len)
         type_str *= name
         @eof_skip_ignored
         b = getbyte(buf, pos)
         if b == UInt('!')
             type_str *= "!"
             pos += 1
+            column += 1
             @eof_skip_ignored
         end
         b = getbyte(buf, pos)
@@ -222,22 +230,24 @@ function parse_type(buf, pos, len)
         end
         type_str *= "]"
         pos += 1
+        column += 1
     else
-        name, pos = parse_name(buf, pos, len)
+        name, pos, line, column = parse_name(buf, pos, line, column, len)
         type_str *= name
     end
     if pos > len
-        return type_str, pos
+        return type_str, pos, line, column
     end
     b = getbyte(buf, pos)
     if b == UInt('!')
         type_str *= "!"
         pos += 1
+        column += 1
     end
-    return type_str, pos
+    return type_str, pos, line, column
 end
 
-function parse_name(buf, pos, len)
+function parse_name(buf, pos, line, column, len)
     b = getbyte(buf, pos)
     if !isnamestart(b)
         invalid("Expected name start character", buf, pos)
@@ -247,16 +257,17 @@ function parse_name(buf, pos, len)
     namelen = 0
     while isnamecontinue(b) && pos <= len
         pos += 1
+        column += 1
         namelen += 1
         if pos <= len
             b = getbyte(buf, pos)
         end
     end
     name = unsafe_string(pointer(buf, startpos), namelen)
-    return name, pos
+    return name, pos, line, column
 end
 
-function parse_selection_set(buf, pos, len)
+function parse_selection_set(buf, pos, line, column, len)
     b = getbyte(buf, pos)
     @skip_ignored
     if b !== UInt8('{')
@@ -264,64 +275,65 @@ function parse_selection_set(buf, pos, len)
     end
 
     pos += 1
+    column += 1
     @eof_skip_ignored
-    b = getbyte(buf, pos)
 
     selections = Selection[]
     while b !== UInt8('}')
-        selection, pos = parse_selection(buf, pos, len)
+        selection, pos, line, column = parse_selection(buf, pos, line, column, len)
         push!(selections, selection)
         @eof
-        b = getbyte(buf, pos)
         @skip_ignored
     end
     pos += 1 # Move past '}'
+    column += 1
 
-    return SelectionSet(selections), pos
+    return SelectionSet(selections), pos, line, column
 end
 
-function parse_selection(buf, pos, len)
+function parse_selection(buf, pos, line, column, len)
     b = getbyte(buf, pos)
     if b == UInt('.') && getbyte(buf, pos+1) == UInt('.') && getbyte(buf, pos+2) == UInt('.')
-        return parse_fragment(buf, pos, len)
+        return parse_fragment(buf, pos, line, column, len)
     else
         # Field
-        return parse_field(buf, pos, len)
+        return parse_field(buf, pos, line, column, len)
     end
 end
 
-function parse_fragment(buf, pos, len)
+function parse_fragment(buf, pos, line, column, len)
     b = getbyte(buf, pos)
     if !(b == UInt('.') && getbyte(buf, pos+1) == UInt('.') && getbyte(buf, pos+2) == UInt('.'))
         # Are these and similar conditions necessary if we're already checking further up?
         invalid("Inline fragments and fragment spread must start '...", buf, pos)
     end
     pos += 3
+    column += 3
     @eof_skip_ignored
     b = getbyte(buf, pos)
     if isnamestart(b)
-        name, pos = parse_name(buf, pos, len)
+        name, pos, line, column = parse_name(buf, pos, line, column, len)
         if name !== "on"
             @eof_skip_ignored
             b = getbyte(buf, pos)
             if b == UInt('@')
-                directives, pos = parse_directives(buf, pos, len)
+                directives, pos, line, column = parse_directives(buf, pos, line, column, len)
             else
                 directives = nothing
             end
-            return FragmentSpread(name, directives), pos
+            return FragmentSpread(name, directives), pos, line, column
         end
 
         # Inline fragment starting with type condition
         @eof_skip_ignored
-        named_type, pos = parse_name(buf, pos, len)
+        named_type, pos, line, column = parse_name(buf, pos, line, column, len)
     else
         named_type = nothing
     end
 
     # Only get here with inline fragment
     if b == UInt('@')
-        directives, pos = parse_directives(buf, pos, len)
+        directives, pos, line, column = parse_directives(buf, pos, line, column, len)
     else
         directives = nothing
     end
@@ -329,11 +341,11 @@ function parse_fragment(buf, pos, len)
     @eof_skip_ignored
     b = getbyte(buf, pos)
 
-    selection_set, pos = parse_selection_set(buf, pos, len)
-    return InlineFragment(named_type, directives, selection_set), pos
+    selection_set, pos, line, column = parse_selection_set(buf, pos, line, column, len)
+    return InlineFragment(named_type, directives, selection_set), pos, line, column
 end
 
-function parse_number(buf, pos, len)
+function parse_number(buf, pos, line, column, len)
     b = getbyte(buf, pos)
 
     number_start = pos
@@ -341,6 +353,7 @@ function parse_number(buf, pos, len)
 
     if b == UInt('-')
         pos += 1
+        column += 1
         number_length += 1
         @eof
         b = getbyte(buf, pos)
@@ -355,10 +368,11 @@ function parse_number(buf, pos, len)
     while isdigit(Char(b))
         number_length += 1
         pos += 1
+        column += 1
         if pos > len
             # Need this check when single digit is at end of buffer
             @inbounds @views value = Parsers.parse(Int64, buf[number_start:number_start+number_length-1])
-            return value, pos
+            return value, pos, line, column
         end
         b = getbyte(buf, pos)
     end
@@ -373,6 +387,7 @@ function parse_number(buf, pos, len)
             # Could do better checking here
             number_length += 1
             pos += 1
+            column += 1
             if pos > len
                 # shouldn't get here but useful for testing function
                 break
@@ -381,15 +396,16 @@ function parse_number(buf, pos, len)
         end
         @inbounds @views value = Parsers.parse(Float64, buf[number_start:number_start+number_length-1])
     end
-    return value, pos
+    return value, pos, line, column
 end
 
-function parse_string(buf, pos, len)
+function parse_string(buf, pos, line, column, len)
     b = getbyte(buf, pos)
     escaped = false
     if b == UInt('"') && getbyte(buf, pos+1) == UInt('"') && getbyte(buf, pos+2) == UInt('"')
         isblockstr = true
         pos += 3
+        column += 3
         @eof
         b = getbyte(buf, pos)
         stringlen = 0
@@ -401,7 +417,14 @@ function parse_string(buf, pos, len)
                 escaped = true
                 pos += 4
                 stringlen += 4
+                column += 4
             else
+                if islineterminator(b)
+                    line += 1
+                    column = 1
+                else
+                    column += 1
+                end
                 pos += 1
                 stringlen += 1
             end
@@ -410,9 +433,11 @@ function parse_string(buf, pos, len)
         end
         # Get past remaining """
         pos += 3
+        column += 3
     else
         isblockstr = false
         pos += 1
+        column += 1
         @eof
         b = getbyte(buf, pos)
         stringlen = 0
@@ -426,14 +451,17 @@ function parse_string(buf, pos, len)
                         invalid("Unicode must have four digits", buf, pos)
                     end
                     pos += 5
+                    column += 5
                     stringlen += 5
                 else
                     # other escaped characted
                     pos += 2
+                    column += 2
                     stringlen += 2
                 end
             else
                 pos += 1
+                column += 1
                 stringlen += 1
             end
             @eof
@@ -442,37 +470,37 @@ function parse_string(buf, pos, len)
 
         # Get past remaining "
         pos += 1
+        column += 1
     end
     if escaped
         if isblockstr
-            return format_block_string(unescape_blockstr(PointerString(pointer(buf, stringstart), stringlen))), pos
+            return format_block_string(unescape_blockstr(PointerString(pointer(buf, stringstart), stringlen))), pos, line, column
         else
-            return unescape(PointerString(pointer(buf, stringstart), stringlen)), pos
+            return unescape(PointerString(pointer(buf, stringstart), stringlen)), pos, line, column
         end
     else
         if isblockstr
-            return format_block_string(unsafe_string(pointer(buf, stringstart), stringlen)), pos
+            return format_block_string(unsafe_string(pointer(buf, stringstart), stringlen)), pos, line, column
         else
-            return unsafe_string(pointer(buf, stringstart), stringlen), pos
+            return unsafe_string(pointer(buf, stringstart), stringlen), pos, line, column
         end
     end
 end
 
-function parse_arguments(buf, pos, len)
+function parse_arguments(buf, pos, line, column, len)
     b = getbyte(buf, pos)
     if b != UInt('(')
         invalid("Arguments must start with (", buf, pos)
     end
 
-    pos +=1 
-    @eof
-    b = getbyte(buf, pos)
-    @skip_ignored
+    pos += 1
+    column += 1
+    @eof_skip_ignored
 
     arguments = Argument[]
 
     while b!= UInt(')')
-        argument, pos = parse_argument(buf, pos, len)
+        argument, pos, line, column = parse_argument(buf, pos, line, column, len)
         push!(arguments, argument)
         @eof_skip_ignored
     end
@@ -480,12 +508,13 @@ function parse_arguments(buf, pos, len)
     isempty(arguments) && invalid("Expected at least one argument", buf, pos)
     # Move past ')'
     pos +=1 
+    column += 1
 
-    return arguments, pos
+    return arguments, pos, line, column
 end
-function parse_argument(buf, pos, len)
+function parse_argument(buf, pos, line, column, len)
     # Get name (either name)
-    name, pos = parse_name(buf, pos, len)
+    name, pos, line, column = parse_name(buf, pos, line, column, len)
     b = getbyte(buf, pos)
     @skip_ignored
 
@@ -494,62 +523,66 @@ function parse_argument(buf, pos, len)
         invalid("Expected : in argument", buf, pos)
     end
     pos += 1
-    @eof
-    b = getbyte(buf, pos)
-    @skip_ignored
+    column += 1
+    @eof_skip_ignored
 
     # Get value
-    value, pos = parse_value(buf, pos, len)
+    value, pos, line, column = parse_value(buf, pos, line, column, len)
 
-    return Argument(name, value), pos
+    return Argument(name, value), pos, line, column
 end
 
-function parse_value(buf, pos, len)
+function parse_value(buf, pos, line, column, len)
     b = getbyte(buf, pos)
     if isdigit(Char(b)) || b == UInt('-')
-        value, pos = parse_number(buf, pos, len)
+        value, pos, line, column = parse_number(buf, pos, line, column, len)
     elseif b == UInt('t') && getbyte(buf, pos+1) == UInt('r') && getbyte(buf, pos+2) == UInt('u') && getbyte(buf, pos+3) == UInt('e')
         # will fail if shorter than this
         value = true
         pos += 4
+        column += 4
     elseif b == UInt('f') && getbyte(buf, pos+1) == UInt('a') && getbyte(buf, pos+2) == UInt('l') && getbyte(buf, pos+3) == UInt('s') && getbyte(buf, pos+4) == UInt('e')
         value = false
         pos += 5
+        column += 5
     elseif b == UInt('n') && getbyte(buf, pos+1) == UInt('u') && getbyte(buf, pos+2) == UInt('l') && getbyte(buf, pos+3) == UInt('l')
         value = nothing
         pos += 4
+        column += 4
     elseif b == UInt('"')
-        value, pos = parse_string(buf, pos, len)
+        value, pos, line, column = parse_string(buf, pos, line, column, len)
         @eof # needed as not checked in parse_string
     elseif b == UInt('[')
-        value, pos = parse_list(buf, pos, len)
+        value, pos, line, column = parse_list(buf, pos, line, column, len)
     elseif b == UInt('{')
         # Input object
-        value, pos = parse_input_object(buf, pos, len)
+        value, pos, line, column = parse_input_object(buf, pos, line, column, len)
     elseif isnamestart(b)
         # enum
-        value_str, pos = parse_name(buf, pos, len)
+        value_str, pos, line, column = parse_name(buf, pos, line, column, len)
         value = Enum(value_str)
     elseif b == UInt('$')
         # variable
         pos += 1
+        column += 1
         @eof_skip_ignored
-        name, pos = parse_name(buf, pos, len)
+        name, pos, line, column = parse_name(buf, pos, line, column, len)
         value = Variable(name)
     else
         invalid("Could not parse value", buf, pos)
     end
 
-    return value, pos
+    return value, pos, line, column
 end
 
-function parse_input_object(buf, pos, len)
+function parse_input_object(buf, pos, line, column, len)
     b = getbyte(buf, pos)
     if b != UInt('{')
         invalid("Input object must start with {", buf, pos)
     end
 
     pos += 1
+    column += 1
     @eof_skip_ignored
 
     object_fields = ObjectField[]
@@ -559,7 +592,7 @@ function parse_input_object(buf, pos, len)
             invalid("Expected name start character or '}'", buf, pos)
         end
 
-        name, pos = parse_name(buf, pos, len)
+        name, pos, line, column = parse_name(buf, pos, line, column, len)
 
         @eof_skip_ignored
 
@@ -568,29 +601,29 @@ function parse_input_object(buf, pos, len)
         end
 
         pos += 1
-        @eof
-        b = getbyte(buf, pos)
-        @skip_ignored
+        column += 1
+        @eof_skip_ignored
 
-        value, pos = parse_value(buf, pos, len)
+        value, pos, line, column = parse_value(buf, pos, line, column, len)
         push!(object_fields, ObjectField(name, value))
         @eof_skip_ignored
-        b = getbyte(buf, pos)
     end
 
     # Move past '}'
     pos += 1
+    column += 1
 
-    return InputObject(object_fields), pos
+    return InputObject(object_fields), pos, line, column
 end
 
-function parse_list(buf, pos, len)
+function parse_list(buf, pos, line, column, len)
     b = getbyte(buf, pos)
     if b != UInt('[')
         invalid("List must start with [", buf, pos)
     end
 
     pos += 1
+    column += 1
     @eof_skip_ignored
     b = getbyte(buf, pos)
 
@@ -598,7 +631,7 @@ function parse_list(buf, pos, len)
     
     first_element = true
     while b != UInt(']')
-        value, pos = parse_value(buf, pos, len)
+        value, pos, line, column = parse_value(buf, pos, line, column, len)
         push!(list, value)
         !first_element && @assert typeof(value) == typeof(first(list))
         @eof_skip_ignored
@@ -606,18 +639,19 @@ function parse_list(buf, pos, len)
 
     # Move past ']'
     pos += 1
+    column += 1
 
-    return list, pos
+    return list, pos, line, column
 end
 
-function parse_field(buf, pos, len)
+function parse_field(buf, pos, line, column, len)
     # Get first name (either name or alias)
-    name, pos = parse_name(buf, pos, len)
+    name, pos, line, column = parse_name(buf, pos, line, column, len)
     alias::Union{String, Nothing} = nothing
     if pos > len
         # Shouldn't really happen but useful for tests
         field = Field(alias, name, nothing, nothing, nothing)
-        return field, pos
+        return field, pos, line, column, len
     end
     b = getbyte(buf, pos)
     @skip_ignored
@@ -626,11 +660,10 @@ function parse_field(buf, pos, len)
     if b == UInt(':')
         # Alias
         pos += 1
-        @eof
-        b = getbyte(buf, pos)
-        @skip_ignored
+        column += 1
+        @eof_skip_ignored
         alias = name
-        name, pos = parse_name(buf, pos, len)
+        name, pos, line, column = parse_name(buf, pos, line, column, len)
     end
     if pos > len
         # Shouldn't really happen but useful for tests
@@ -642,29 +675,31 @@ function parse_field(buf, pos, len)
 
     # Check for arguments
     if b == UInt8('(')
-        arguments, pos = parse_arguments(buf, pos, len)
+        arguments, pos, line, column = parse_arguments(buf, pos, line, column, len)
     else
         arguments = nothing
     end
     b = getbyte(buf, pos)
-    @skip_ignored
+    @skip_ignored # TODO: what if arguments and nothing else after?
 
     # Check for directives
     if b == UInt('@')
-        directives = parse_directives(buf, pos, len)
+        directives, pos, line, column = parse_directives(buf, pos, line, column, len)
     else
         directives = nothing
     end
+    b = getbyte(buf, pos)
+    @skip_ignored # TODO: what if arguments and nothing else after?
 
     # Check for selection set
     if b == UInt8('{')
         # SelectionSet
-        selection_set, pos = parse_selection_set(buf, pos, len)
+        selection_set, pos, line, column = parse_selection_set(buf, pos, line, column, len)
     else
         selection_set = nothing
     end
 
     # Build operation from tape
     field = Field(alias, name, arguments, directives, selection_set)
-    return field, pos
+    return field, pos, line, column
 end
