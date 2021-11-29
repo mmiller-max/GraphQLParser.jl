@@ -64,8 +64,7 @@ function parse_operation(buf, pos, len)
         operation_type ∉ ("query", "mutation", "subscription") && throw(ArgumentError("operation type can't be $operation_type"))
     end
 
-    @skip_ignored
-    b = getbyte(buf, pos)
+    @eof_skip_ignored
 
     if isnamestart(b)
         # name (optional)
@@ -74,8 +73,7 @@ function parse_operation(buf, pos, len)
         name = nothing
     end
 
-    @skip_ignored
-    b = getbyte(buf, pos)
+    @eof_skip_ignored
 
     if b == UInt('(')
         variables, pos = parse_variable_definitions(buf, pos, len)
@@ -83,33 +81,29 @@ function parse_operation(buf, pos, len)
         variables = nothing
     end
 
+    @eof_skip_ignored
+
     selection_set, pos = parse_selection_set(buf, pos, len)
     return Operation(operation_type, name, variables, nothing, selection_set), pos
-
 end
 
 function parse_fragment_definition(buf, pos, len)
     definition_type, pos = parse_name(buf, pos, len)
     definition_type != "fragment" && invalid("Fragment definition must start with 'fragment'", buf, pos)
-    @eof
-    @skip_ignored
+    @eof_skip_ignored
     name, pos = parse_name(buf, pos, len)
-    @eof
-    @skip_ignored
+    @eof_skip_ignored
     on, pos = parse_name(buf, pos, len)
     on != "on" && invalid("Fragment definition must have form 'FragmentName on NamedTime'", buf, pos)
-    @eof
-    @skip_ignored
+    @eof_skip_ignored
     named_type, pos = parse_name(buf, pos, len)
-    @eof
-    @skip_ignored
+    @eof_skip_ignored
     if b == UInt('@')
         directives, pos = parse_directives(buf, pos, len)
     else
         directives = nothing
     end
-    @eof
-    @skip_ignored
+    @eof_skip_ignored
     selection_set, pos = parse_selection_set(buf, pos, len)
     return FragmentDefinition(name, named_type, directives, selection_set), pos
 end
@@ -121,9 +115,7 @@ function parse_variable_definitions(buf, pos, len)
     end
 
     pos += 1
-    @eof
-    @skip_ignored
-    b = getbyte(buf, pos) # is this done in @skip_ignored?
+    @eof_skip_ignored
 
     variables_defs = VariableDefinition[]
     while b != UInt(')')
@@ -132,34 +124,27 @@ function parse_variable_definitions(buf, pos, len)
         end
 
         pos += 1
-        @eof
-        @skip_ignored
+        @eof_skip_ignored
 
         name, pos = parse_name(buf, pos, len)
 
-        @eof
-        @skip_ignored
-        b = getbyte(buf, pos)
+        @eof_skip_ignored
 
         if b != UInt(':')
             invalid("Variable name and type must be separated by ':'", buf, pos)
         end
 
         pos += 1  # Move past :
-        @eof
-        @skip_ignored
+        @eof_skip_ignored
 
         type, pos = parse_type(buf, pos, len)
 
-        @eof
-        @skip_ignored
-        b = getbyte(buf, pos)
+        @eof_skip_ignored
 
         # default value
         if b == UInt('=')
             pos += 1
-            @eof
-            @skip_ignored
+            @eof_skip_ignored
             value, pos = parse_value(buf, pos, len)
         else
             value = nothing
@@ -168,16 +153,14 @@ function parse_variable_definitions(buf, pos, len)
         # directives
         if b == UInt('@')
             pos += 1
-            @eof
-            @skip_ignored
+            @eof_skip_ignored
             directive, pos = parse_directives(buf, pos, len)
         else
             directive = nothing
         end
 
         push!(variables_defs, VariableDefinition(name, type, value, directive))
-        @eof
-        @skip_ignored
+        @eof_skip_ignored
         b = getbyte(buf, pos)
     end
     pos += 1 # move past )
@@ -202,8 +185,7 @@ function parse_directive(buf, pos, len)
     end
 
     pos += 1
-    @eof
-    @skip_ignored
+    @eof_skip_ignored
 
     name, pos = parse_name(buf, pos, len)
 
@@ -226,18 +208,15 @@ function parse_type(buf, pos, len)
     if b == UInt('[')
         type_str *= "["
         pos += 1
-        @eof
-        @skip_ignored
+        @eof_skip_ignored
         name, pos = parse_type(buf, pos, len)
         type_str *= name
-        @eof
-        @skip_ignored
+        @eof_skip_ignored
         b = getbyte(buf, pos)
         if b == UInt('!')
             type_str *= "!"
             pos += 1
-            @eof
-            @skip_ignored
+            @eof_skip_ignored
         end
         b = getbyte(buf, pos)
         if b != UInt(']')
@@ -289,8 +268,7 @@ function parse_selection_set(buf, pos, len)
     end
 
     pos += 1
-    @eof
-    @skip_ignored
+    @eof_skip_ignored
     b = getbyte(buf, pos)
 
     selections = Selection[]
@@ -323,14 +301,12 @@ function parse_fragment(buf, pos, len)
         invalid("Inline fragments and fragment spread must start '...", buf, pos)
     end
     pos += 3
-    @eof
-    @skip_ignored
+    @eof_skip_ignored
     b = getbyte(buf, pos)
     if isnamestart(b)
         name, pos = parse_name(buf, pos, len)
         if name !== "on"
-            @eof
-            @skip_ignored
+            @eof_skip_ignored
             b = getbyte(buf, pos)
             if b == UInt('@')
                 directives, pos = parse_directives(buf, pos, len)
@@ -341,8 +317,7 @@ function parse_fragment(buf, pos, len)
         end
 
         # Inline fragment starting with type condition
-        @eof
-        @skip_ignored
+        @eof_skip_ignored
         named_type, pos = parse_name(buf, pos, len)
     else
         named_type = nothing
@@ -355,8 +330,7 @@ function parse_fragment(buf, pos, len)
         directives = nothing
     end
 
-    @eof
-    @skip_ignored
+    @eof_skip_ignored
     b = getbyte(buf, pos)
 
     selection_set, pos = parse_selection_set(buf, pos, len)
@@ -504,8 +478,7 @@ function parse_arguments(buf, pos, len)
     while b!= UInt(')')
         argument, pos = parse_argument(buf, pos, len)
         push!(arguments, argument)
-        @eof
-        @skip_ignored
+        @eof_skip_ignored
     end
 
     isempty(arguments) && invalid("Expected at least one argument", buf, pos)
@@ -564,8 +537,7 @@ function parse_value(buf, pos, len)
     elseif b == UInt('$')
         # variable
         pos += 1
-        @eof
-        @skip_ignored
+        @eof_skip_ignored
         name, pos = parse_name(buf, pos, len)
         value = Variable(name)
     else
@@ -582,8 +554,7 @@ function parse_input_object(buf, pos, len)
     end
 
     pos += 1
-    @eof
-    @skip_ignored
+    @eof_skip_ignored
 
     object_fields = ObjectField[]
 
@@ -594,8 +565,7 @@ function parse_input_object(buf, pos, len)
 
         name, pos = parse_name(buf, pos, len)
 
-        @eof
-        @skip_ignored
+        @eof_skip_ignored
 
         if b != UInt(':')
             invalid("ObjectField name must be followed by ':'", buf, pos)
@@ -608,8 +578,7 @@ function parse_input_object(buf, pos, len)
 
         value, pos = parse_value(buf, pos, len)
         push!(object_fields, ObjectField(name, value))
-        @eof
-        @skip_ignored
+        @eof_skip_ignored
         b = getbyte(buf, pos)
     end
 
@@ -626,8 +595,7 @@ function parse_list(buf, pos, len)
     end
 
     pos += 1
-    @eof
-    @skip_ignored
+    @eof_skip_ignored
     b = getbyte(buf, pos)
 
     list = Any[] # TODO: we'd use introspection here to determine the type of the list.
@@ -637,8 +605,7 @@ function parse_list(buf, pos, len)
         value, pos = parse_value(buf, pos, len)
         push!(list, value)
         !first_element && @assert typeof(value) == typeof(first(list))
-        @eof
-        @skip_ignored
+        @eof_skip_ignored
     end
 
     # Move past ]

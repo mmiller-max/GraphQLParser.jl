@@ -49,6 +49,14 @@ macro skip_ignored()
     end)
 end
 
+macro eof_skip_ignored()
+    esc(quote
+        @eof
+        @skip_ignored
+    end)
+end
+
+
 function only_ignored_left(buf, pos, len)
     while pos <= len
         b = getbyte(buf, pos)
