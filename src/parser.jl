@@ -26,7 +26,7 @@ function parse_definitions(buf, pos, len)
         operation, pos = parse_operation(buf, pos, len)
         push!(definitions, operation)
         if pos <= len
-            !only_ignored_left(buf, pos, len) && invalid("Shorthand operation only allowed when documet contains only one operation", buf, pos)
+            !only_ignored_left(buf, pos, len) && invalid("Shorthand operation only allowed when document contains only one operation", buf, pos)
         end
         return definitions, pos
     elseif !isnamestart(b)
