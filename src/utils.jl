@@ -100,7 +100,8 @@ end
     end
 
     escaped_str = escape_string(String(@view(buf[start_char:end_char])))
-    indent += length(escape_string(String(@view(buf[start_char:indent])))) - length(@view(buf[start_char:indent]))
+    display_text_up_to_indent = @view(buf[start_char:min(end, indent)])
+    indent += length(escape_string(String(display_text_up_to_indent))) - length(display_text_up_to_indent)
     
     throw(
         ArgumentError(
