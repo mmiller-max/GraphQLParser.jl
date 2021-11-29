@@ -91,12 +91,15 @@ end
         indent = pos
     end
 
+    escaped_str = escape_string(String(@view(buf[start_char:end_char])))
+    indent += length(escape_string(String(@view(buf[start_char:indent])))) - length(@view(buf[start_char:indent]))
+    
     throw(
         ArgumentError(
             """
             invalid GraphQL string at byte position $pos while parsing
                 $error_text
-                $(String(buf[start_char:end_char]))
+                $escaped_str
                 $(lpad("^", indent))
             """
         )
