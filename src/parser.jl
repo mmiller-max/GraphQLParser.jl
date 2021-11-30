@@ -314,8 +314,6 @@ function parse_selection(buf, pos, line, column, len)
 end
 
 function parse_fragment(buf, pos, line, column, len)
-    start_line = line
-    start_column = column
     b = getbyte(buf, pos)
     if !(b == UInt('.') && getbyte(buf, pos+1) == UInt('.') && getbyte(buf, pos+2) == UInt('.'))
         # Are these and similar conditions necessary if we're already checking further up?
@@ -323,6 +321,8 @@ function parse_fragment(buf, pos, line, column, len)
     end
     pos += 3
     column += 3
+    start_line = line
+    start_column = column
     @eof_skip_ignored
     b = getbyte(buf, pos)
     if isnamestart(b)
@@ -335,12 +335,15 @@ function parse_fragment(buf, pos, line, column, len)
             else
                 directives = nothing
             end
-            return FragmentSpread(name, directives), pos, line, column
+            @eof_skip_ignored
+            b = getbyte(buf, pos)
+            return FragmentSpread(name, directives, Loc(start_line, start_column)), pos, line, column
         end
 
         # Inline fragment starting with type condition
         @eof_skip_ignored
         named_type, pos, line, column = parse_name(buf, pos, line, column, len)
+        @eof_skip_ignored
     else
         named_type = nothing
     end
@@ -353,7 +356,6 @@ function parse_fragment(buf, pos, line, column, len)
     end
 
     @eof_skip_ignored
-    b = getbyte(buf, pos)
 
     selection_set, pos, line, column = parse_selection_set(buf, pos, line, column, len)
     return InlineFragment(named_type, directives, selection_set, Loc(start_line, start_column)), pos, line, column
