@@ -36,7 +36,7 @@ function parse_definitions(buf, pos, line, column, len)
     else
         while pos <= len
             # operation type
-            definition_type, _, line, column = parse_name(buf, pos, line, column, len)
+            definition_type, _, _, _ = parse_name(buf, pos, line, column, len)
             definition_type ∉ ("query", "mutation", "subscription", "fragment") && invalid("Definition type can't be $definition_type", buf, pos)
             if definition_type == "fragment"
                 fragment, pos, line, column = parse_fragment_definition(buf, pos, line, column, len)
@@ -53,6 +53,8 @@ function parse_definitions(buf, pos, line, column, len)
 end
 
 function parse_operation(buf, pos, line, column, len)
+    start_line = line
+    start_column = column
     b = getbyte(buf, pos)
     if b == UInt8('{')
         operation_type = "query"
@@ -84,10 +86,13 @@ function parse_operation(buf, pos, line, column, len)
     @eof_skip_ignored
 
     selection_set, pos, line, column = parse_selection_set(buf, pos, line, column, len)
-    return Operation(operation_type, name, variables, nothing, selection_set), pos, line, column
+    operation = Operation(operation_type, name, variables, nothing, selection_set, Loc(start_line, start_column))
+    return operation, pos, line, column
 end
 
 function parse_fragment_definition(buf, pos, line, column, len)
+    start_line = line
+    start_column = column
     definition_type, pos, line, column = parse_name(buf, pos, line, column, len)
     definition_type != "fragment" && invalid("Fragment definition must start with 'fragment'", buf, pos)
     @eof_skip_ignored
@@ -105,10 +110,13 @@ function parse_fragment_definition(buf, pos, line, column, len)
     end
     @eof_skip_ignored
     selection_set, pos, line, column = parse_selection_set(buf, pos, line, column, len)
-    return FragmentDefinition(name, named_type, directives, selection_set), pos, line, column
+    fragment_definition = FragmentDefinition(name, named_type, directives, selection_set, Loc(start_line, start_column))
+    return fragment_definition, pos, line, column
 end
 
 function parse_variable_definitions(buf, pos, line, column, len)
+    start_line = line
+    start_column = column
     b = getbyte(buf, pos)
     if b != UInt('(') # redundant check?
         invalid("Variable definitions must start with '('", buf, pos)
@@ -164,7 +172,7 @@ function parse_variable_definitions(buf, pos, line, column, len)
             directive = nothing
         end
 
-        push!(variables_defs, VariableDefinition(name, type, value, directive))
+        push!(variables_defs, VariableDefinition(name, type, value, directive, Loc(start_line, start_column)))
         @eof_skip_ignored
         b = getbyte(buf, pos)
     end
@@ -183,6 +191,8 @@ function parse_directives(buf, pos, line, column, len)
 end
 
 function parse_directive(buf, pos, line, column, len)
+    start_line = line
+    start_column = column
     b = getbyte(buf, pos)
     if b != UInt('@') # redundant check?
         invalid("Directives must start with '@'", buf, pos)
@@ -195,7 +205,7 @@ function parse_directive(buf, pos, line, column, len)
     name, pos, line, column = parse_name(buf, pos, line, column, len)
 
     if pos > len
-        return Directive(name, nothing), pos, line, column
+        return Directive(name, nothing, Loc(start_line, start_column)), pos, line, column
     end
 
     @skip_ignored
@@ -203,7 +213,7 @@ function parse_directive(buf, pos, line, column, len)
         arguments, pos, line, column = parse_arguments(buf, pos, line, column, len)
     end
 
-    return Directive(name, arguments), pos, line, column
+    return Directive(name, arguments, Loc(start_line, start_column)), pos, line, column
 end
 
 function parse_type(buf, pos, line, column, len)
@@ -268,6 +278,8 @@ function parse_name(buf, pos, line, column, len)
 end
 
 function parse_selection_set(buf, pos, line, column, len)
+    start_line = line
+    start_column = column
     b = getbyte(buf, pos)
     @skip_ignored
     if b !== UInt8('{')
@@ -288,7 +300,7 @@ function parse_selection_set(buf, pos, line, column, len)
     pos += 1 # Move past '}'
     column += 1
 
-    return SelectionSet(selections), pos, line, column
+    return SelectionSet(selections, Loc(start_line, start_column)), pos, line, column
 end
 
 function parse_selection(buf, pos, line, column, len)
@@ -302,6 +314,8 @@ function parse_selection(buf, pos, line, column, len)
 end
 
 function parse_fragment(buf, pos, line, column, len)
+    start_line = line
+    start_column = column
     b = getbyte(buf, pos)
     if !(b == UInt('.') && getbyte(buf, pos+1) == UInt('.') && getbyte(buf, pos+2) == UInt('.'))
         # Are these and similar conditions necessary if we're already checking further up?
@@ -342,7 +356,7 @@ function parse_fragment(buf, pos, line, column, len)
     b = getbyte(buf, pos)
 
     selection_set, pos, line, column = parse_selection_set(buf, pos, line, column, len)
-    return InlineFragment(named_type, directives, selection_set), pos, line, column
+    return InlineFragment(named_type, directives, selection_set, Loc(start_line, start_column)), pos, line, column
 end
 
 function parse_number(buf, pos, line, column, len)
@@ -513,6 +527,8 @@ function parse_arguments(buf, pos, line, column, len)
     return arguments, pos, line, column
 end
 function parse_argument(buf, pos, line, column, len)
+    start_line = line
+    start_column = column
     # Get name (either name)
     name, pos, line, column = parse_name(buf, pos, line, column, len)
     b = getbyte(buf, pos)
@@ -529,7 +545,7 @@ function parse_argument(buf, pos, line, column, len)
     # Get value
     value, pos, line, column = parse_value(buf, pos, line, column, len)
 
-    return Argument(name, value), pos, line, column
+    return Argument(name, value, Loc(start_line, start_column)), pos, line, column
 end
 
 function parse_value(buf, pos, line, column, len)
@@ -559,8 +575,10 @@ function parse_value(buf, pos, line, column, len)
         value, pos, line, column = parse_input_object(buf, pos, line, column, len)
     elseif isnamestart(b)
         # enum
+        start_line = line
+        start_column = column
         value_str, pos, line, column = parse_name(buf, pos, line, column, len)
-        value = Enum(value_str)
+        value = Enum(value_str, Loc(start_line, start_column))
     elseif b == UInt('$')
         # variable
         pos += 1
@@ -576,6 +594,8 @@ function parse_value(buf, pos, line, column, len)
 end
 
 function parse_input_object(buf, pos, line, column, len)
+    start_line = line
+    start_column = column
     b = getbyte(buf, pos)
     if b != UInt('{')
         invalid("Input object must start with {", buf, pos)
@@ -605,7 +625,7 @@ function parse_input_object(buf, pos, line, column, len)
         @eof_skip_ignored
 
         value, pos, line, column = parse_value(buf, pos, line, column, len)
-        push!(object_fields, ObjectField(name, value))
+        push!(object_fields, ObjectField(name, value, Loc(start_line, start_column)))
         @eof_skip_ignored
     end
 
@@ -613,7 +633,7 @@ function parse_input_object(buf, pos, line, column, len)
     pos += 1
     column += 1
 
-    return InputObject(object_fields), pos, line, column
+    return InputObject(object_fields, Loc(start_line, start_column)), pos, line, column
 end
 
 function parse_list(buf, pos, line, column, len)
@@ -645,12 +665,14 @@ function parse_list(buf, pos, line, column, len)
 end
 
 function parse_field(buf, pos, line, column, len)
+    start_line = line
+    start_column = column
     # Get first name (either name or alias)
     name, pos, line, column = parse_name(buf, pos, line, column, len)
     alias::Union{String, Nothing} = nothing
     if pos > len
         # Shouldn't really happen but useful for tests
-        field = Field(alias, name, nothing, nothing, nothing)
+        field = Field(alias, name, nothing, nothing, nothing, Loc(start_line, start_column))
         return field, pos, line, column, len
     end
     b = getbyte(buf, pos)
@@ -667,7 +689,7 @@ function parse_field(buf, pos, line, column, len)
     end
     if pos > len
         # Shouldn't really happen but useful for tests
-        field = Field(alias, name, nothing, nothing, nothing)
+        field = Field(alias, name, nothing, nothing, nothing, Loc(start_line, start_column))
         return field, pos
     end
     b = getbyte(buf, pos)
@@ -700,6 +722,6 @@ function parse_field(buf, pos, line, column, len)
     end
 
     # Build operation from tape
-    field = Field(alias, name, arguments, directives, selection_set)
+    field = Field(alias, name, arguments, directives, selection_set, Loc(start_line, start_column))
     return field, pos, line, column
 end

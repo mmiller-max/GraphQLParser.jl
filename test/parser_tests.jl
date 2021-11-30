@@ -520,4 +520,32 @@ end
     @test pos == 20
     @test line == 5
     @test column == 6
+
+    # Example No 5
+    str = """
+    mutation {
+        likeStory(storyID: 12345) {
+            story {
+                likeCount
+            }
+        }
+    }
+    """
+    doc = GraphQLParser.parse(str)
+    @test doc.definitions[1].loc == Loc(1,1)
+    @test doc.definitions[1].selection_set.loc == Loc(1,10)
+    @test doc.definitions[1].selection_set.selections[1].loc == Loc(2,5)
+    @test doc.definitions[1].selection_set.selections[1].arguments[1].loc == Loc(2,15)
+    @test doc.definitions[1].selection_set.selections[1].selection_set.loc == Loc(2,31)
+    @test doc.definitions[1].selection_set.selections[1].selection_set.selections[1].loc == Loc(3,9)
+    @test doc.definitions[1].selection_set.selections[1].selection_set.selections[1].selection_set.loc == Loc(3,15)
+    @test doc.definitions[1].selection_set.selections[1].selection_set.selections[1].selection_set.selections[1].loc == Loc(4,13)
+    str = """
+    query myquery{
+        alias: name @skip(if: \$var){
+            ...FragmentDef
+            ... on User{field}
+        }
+    }
+    """
 end

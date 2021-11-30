@@ -1,6 +1,5 @@
 module GraphQLParser
 
-using AutoHashEquals
 using Parsers
 
 include("utils.jl")
