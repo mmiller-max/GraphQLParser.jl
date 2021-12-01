@@ -262,7 +262,22 @@ end
             ])
         )
         @test GraphQLParser.parse_fragment(default_args(str)...)[1] == intended_result
-        
+
+        str = """... {
+            friends {
+                count
+            }
+        }
+        """
+        intended_result = InlineFragment(
+            nothing,
+            nothing,
+            SelectionSet([
+                Field(nothing, "friends", nothing, nothing, SelectionSet([Field(nothing, "count", nothing, nothing, nothing)]))
+            ])
+        )
+        @test GraphQLParser.parse_fragment(default_args(str)...)[1] == intended_result
+
         # From Example 24, 2021 spec
         str = """... @include(if: \$expandedInfo) {
             firstName
