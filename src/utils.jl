@@ -91,7 +91,6 @@ end
     end_char = pos + n_chars
     indent = n_chars + 1
     if len - pos < n_chars
-        indent = n_chars + 1
         end_char = length(buf)
     end
     if pos <= n_chars
@@ -100,7 +99,7 @@ end
     end
 
     escaped_str = escape_string(String(@view(buf[start_char:end_char])))
-    display_text_up_to_indent = @view(buf[start_char:min(end, indent)])
+    display_text_up_to_indent = @view(buf[start_char:min(end, indent + start_char - 1)])
     indent += length(escape_string(String(display_text_up_to_indent))) - length(display_text_up_to_indent)
     
     throw(
