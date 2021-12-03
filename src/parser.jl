@@ -24,20 +24,16 @@ function parse_definitions(buf, pos, line, column, len)
     definitions = Definition[]
 
     # Check for shorthand
-    if b == UInt8('{')
-        operation, pos, line, column = parse_operation(buf, pos, line, column, len)
-        push!(definitions, operation)
-        if pos <= len
-            !only_ignored_left(buf, pos, len) && invalid("Shorthand operation only allowed when document contains only one operation", buf, pos)
-        end
-        return definitions, pos, line, column
-    elseif !isnamestart(b)
-        invalid("Expected name start character at start of definition", buf, pos)
-    else
-        while pos <= len
+    while pos <= len
+        if b == UInt8('{')
+            operation, pos, line, column = parse_operation(buf, pos, line, column, len)
+            push!(definitions, operation)
+        elseif !isnamestart(b)
+            invalid("Expected name start character at start of definition", buf, pos)
+        else
             # operation type
             definition_type, _, _, _ = parse_name(buf, pos, line, column, len)
-            definition_type ∉ ("query", "mutation", "subscription", "fragment") && invalid("Definition type can't be $definition_type", buf, pos)
+            definition_type ∉ ("query", "mutation", "subscription", "fragment") && invalid("Definition type can't be \"$definition_type\"", buf, pos)
             if definition_type == "fragment"
                 fragment, pos, line, column = parse_fragment_definition(buf, pos, line, column, len)
                 push!(definitions, fragment)
@@ -45,9 +41,9 @@ function parse_definitions(buf, pos, line, column, len)
                 operation, pos, line, column = parse_operation(buf, pos, line, column, len)
                 push!(definitions, operation)
             end
-            only_ignored_left(buf, pos, len) && return definitions, pos, line, column
-            @skip_ignored
         end
+        only_ignored_left(buf, pos, len) && return definitions, pos, line, column
+        @skip_ignored
     end
     return definitions, pos, line, column
 end

@@ -517,6 +517,30 @@ end
     }
     """
     @test GraphQLParser.parse(str_25) == GraphQLParser.parse(str_26)
+
+    # Check for anonymous query second
+    str = """
+    fragment Fragment on User {name}
+
+    {
+        myQuery
+    }
+    """
+    @test GraphQLParser.parse(str) == Document([
+        FragmentDefinition(
+            "Fragment",
+            "User",
+            nothing,
+            SelectionSet([Field(nothing, "name", nothing, nothing, nothing)]),
+        ),
+        Operation(
+            "query",
+            nothing,
+            nothing,
+            nothing,
+            SelectionSet([Field(nothing, "myQuery", nothing, nothing, nothing)]),
+        )
+    ])
 end
 
 @testset "Line and column" begin
