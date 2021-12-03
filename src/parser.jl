@@ -92,10 +92,11 @@ function parse_fragment_definition(buf, pos, line, column, len)
     definition_type, pos, line, column = parse_name(buf, pos, line, column, len)
     definition_type != "fragment" && invalid("Fragment definition must start with 'fragment'", buf, pos)
     @eof_skip_ignored
+    first_name_pos = pos
     name, pos, line, column = parse_name(buf, pos, line, column, len)
     @eof_skip_ignored
     on, pos, line, column = parse_name(buf, pos, line, column, len)
-    on != "on" && invalid("Fragment definition must have form 'FragmentName on NamedTime'", buf, pos)
+    on != "on" && invalid("Fragment definition must have form 'FragmentName on NamedTime'", buf, first_name_pos)
     @eof_skip_ignored
     named_type, pos, line, column = parse_name(buf, pos, line, column, len)
     @eof_skip_ignored
