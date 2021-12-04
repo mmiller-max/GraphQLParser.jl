@@ -298,6 +298,28 @@ end
     end
 end
 
+@testset "comments" begin
+    str1 = """
+    {
+        myQuery{
+            field # this is a useful field
+            # not_this_field
+        }
+    }
+    # finishing comments
+    """
+
+    str2 = """
+    {
+        myQuery{
+            field
+        }
+    }
+    """
+
+    @test GraphQLParser.parse(str1) == GraphQLParser.parse(str2)
+end
+
 @testset "Full Examples" begin
     # Example No 5
     str = """
