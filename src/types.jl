@@ -9,6 +9,8 @@ struct Loc <: GQLItem
     line::Int
     column::Int
 end
+Base.show(io::IO, ::MIME"text/plain", loc::Loc) = print(io, "Line $(loc.line) Column $(loc.column)")
+Base.show(io::IO, loc::Loc) = print(io, "Line $(loc.line) Column $(loc.column)") # for string interpolation
 
 struct Variable <: GQLItem
     name::String

@@ -1,5 +1,3 @@
-Base.show(io::IO, ::MIME"text/plain", loc::Loc) = print(io, "Line $(loc.line) Column $(loc.column)")
-
 """
     Error
 
