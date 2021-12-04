@@ -19,7 +19,7 @@
     str = """
     query myquery{field{...TopLevel}}
     """
-    errors = GraphQLParser.validate_fragments!(GraphQLParser.Error[], GraphQLParser.parse(str))
+    errors = GraphQLParser.validate_fragments!(GraphQLParser.ValidationError[], GraphQLParser.parse(str))
     @test only(errors) isa GraphQLParser.UnknownFragment
     @test only(errors[1].locations) == Loc(1, 24)
 
@@ -27,7 +27,7 @@
     query myquery2{field{... on User {...TopLevel}}}
     query myquery3{field{... on User {...TopLevel}}}
     """
-    errors = GraphQLParser.validate_fragments!(GraphQLParser.Error[], GraphQLParser.parse(str))
+    errors = GraphQLParser.validate_fragments!(GraphQLParser.ValidationError[], GraphQLParser.parse(str))
     @test only(errors) isa GraphQLParser.UnknownFragment
     @test length(errors[1].locations) == 2
     @test errors[1].locations[1] == Loc(1, 38)
@@ -41,7 +41,7 @@
         }
     }
     """
-    errors = GraphQLParser.validate_fragments!(GraphQLParser.Error[], GraphQLParser.parse(str))
+    errors = GraphQLParser.validate_fragments!(GraphQLParser.ValidationError[], GraphQLParser.parse(str))
     @test only(errors) isa GraphQLParser.UnknownFragment
     @test only(errors[1].locations) == Loc(3, 12)
 
@@ -56,7 +56,7 @@
 
     fragment TopLevel2 on Name {...SubTopLevel}
     """
-    errors = GraphQLParser.validate_fragments!(GraphQLParser.Error[], GraphQLParser.parse(str))
+    errors = GraphQLParser.validate_fragments!(GraphQLParser.ValidationError[], GraphQLParser.parse(str))
     
     @test length(errors) == 3
     @test all(err -> isa(err, GraphQLParser.UnknownFragment), errors)
@@ -80,7 +80,7 @@
         }
     }
     """
-    errors = GraphQLParser.validate_fragments!(GraphQLParser.Error[], GraphQLParser.parse(str))
+    errors = GraphQLParser.validate_fragments!(GraphQLParser.ValidationError[], GraphQLParser.parse(str))
     @test isempty(errors)
     
     # Counter Example 138
@@ -101,7 +101,7 @@
         }
     }
     """
-    errors = GraphQLParser.validate_fragments!(GraphQLParser.Error[], GraphQLParser.parse(str))
+    errors = GraphQLParser.validate_fragments!(GraphQLParser.ValidationError[], GraphQLParser.parse(str))
     @test length(errors) == 2
     @test errors[1] isa GraphQLParser.RepeatedFragmentDefinition
     @test errors[2] isa GraphQLParser.RepeatedFragmentDefinition
@@ -118,7 +118,7 @@
         }
     }
     """
-    errors = GraphQLParser.validate_fragments!(GraphQLParser.Error[], GraphQLParser.parse(str))
+    errors = GraphQLParser.validate_fragments!(GraphQLParser.ValidationError[], GraphQLParser.parse(str))
     @test only(errors) isa GraphQLParser.UnusedFragment
 end
 
@@ -140,7 +140,7 @@ end
             }
         }
         """
-        errors = GraphQLParser.validate_operations!(GraphQLParser.Error[], GraphQLParser.parse(str))
+        errors = GraphQLParser.validate_operations!(GraphQLParser.ValidationError[], GraphQLParser.parse(str))
         @test isempty(errors)
 
         # Counter Example 104
@@ -159,7 +159,7 @@ end
             }
         }
         """
-        errors = GraphQLParser.validate_operations!(GraphQLParser.Error[], GraphQLParser.parse(str))
+        errors = GraphQLParser.validate_operations!(GraphQLParser.ValidationError[], GraphQLParser.parse(str))
         @test length(errors) == 2
         @test errors[1] isa GraphQLParser.RepeatedOperationDefinition
         @test errors[2] isa GraphQLParser.RepeatedOperationDefinition
@@ -180,7 +180,7 @@ end
             }     
         }
         """
-        errors = GraphQLParser.validate_operations!(GraphQLParser.Error[], GraphQLParser.parse(str))
+        errors = GraphQLParser.validate_operations!(GraphQLParser.ValidationError[], GraphQLParser.parse(str))
         @test length(errors) == 2
         @test errors[1] isa GraphQLParser.RepeatedOperationDefinition
         @test errors[2] isa GraphQLParser.RepeatedOperationDefinition
@@ -197,7 +197,7 @@ end
             }
         }
         """
-        errors = GraphQLParser.validate_operations!(GraphQLParser.Error[], GraphQLParser.parse(str))
+        errors = GraphQLParser.validate_operations!(GraphQLParser.ValidationError[], GraphQLParser.parse(str))
         @test isempty(errors)
 
         # Counter Example 107
@@ -216,7 +216,7 @@ end
             }
         }
         """
-        errors = GraphQLParser.validate_operations!(GraphQLParser.Error[], GraphQLParser.parse(str))
+        errors = GraphQLParser.validate_operations!(GraphQLParser.ValidationError[], GraphQLParser.parse(str))
         @test only(errors) isa GraphQLParser.AnonymousOperationNotAlone
         @test errors[1].locations[1] == Loc(1,1)
     end

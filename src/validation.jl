@@ -11,11 +11,12 @@ See the documentation for a full description of what validation is performed.
 validate_executable_document(str::String) = validate(parse(str))
 
 function validate(doc::Document)
-    errors = Error[]
-    validate_operations!(errors::Vector{Error}, doc::Document)
-    validate_fragments!(errors::Vector{Error}, doc::Document)
+    errors = ValidationError[]
+    validate_operations!(errors::Vector{ValidationError}, doc::Document)
+    validate_fragments!(errors::Vector{ValidationError}, doc::Document)
 end
-function validate_operations!(errors::Vector{Error}, doc::Document)
+
+function validate_operations!(errors::Vector{ValidationError}, doc::Document)
     defined_operations = [(name=def.name, loc=def.loc) for def in doc.definitions if isa(def, Operation)]
     defined_names = [def.name for def in defined_operations]
     n_defined_names = length(defined_names)
@@ -46,7 +47,7 @@ function validate_operations!(errors::Vector{Error}, doc::Document)
     return errors
 end
 
-function validate_fragments!(errors::Vector{Error}, doc::Document)
+function validate_fragments!(errors::Vector{ValidationError}, doc::Document)
     defined_fragments = [(name=def.name, loc=def.loc) for def in doc.definitions if isa(def, FragmentDefinition)]
     defined_names = [def.name for def in defined_fragments]
 
