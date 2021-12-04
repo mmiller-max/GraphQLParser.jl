@@ -6,4 +6,5 @@ using Test
 
 @testset "GraphQLParser.jl" begin
     include("parser_tests.jl")
+    include("validation.jl")
 end
