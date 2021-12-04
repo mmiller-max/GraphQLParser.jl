@@ -5,6 +5,11 @@
 # - assumes that pos is the first character of what it is trying to parse (i.e. not an ignored charactaer)
 # - returns pos at the position just after it has finished reading
 
+"""
+    parse(str::AbstractString)
+
+Parses a GraphQL executable document string.
+"""
 function parse(str::AbstractString)
     buf = codeunits(str)
     len = length(buf)

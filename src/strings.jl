@@ -153,8 +153,7 @@ end
 """
     format_block_string(str)
 
-Perform the formatting defined here:
-https://spec.graphql.org/October2021/#sec-String-Value.Semantics
+Perform the formatting defined [in the specification](https://spec.graphql.org/October2021/#sec-String-Value.Semantics).
 """
 function format_block_string(str)
     lines = split(str, r"\r|\n") # split by line terminators
