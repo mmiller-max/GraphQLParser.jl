@@ -21,8 +21,9 @@ for err in errors
     end
 end
 
-function Base.show(io::IO, ::MIME"text/plain", err::ValidationError)
-    printstyled(io, "GQLError", color=Base.error_color())
+Base.show(io::IO, ::MIME"text/plain", err::ValidationError) = print_error(io, err)
+function print_error(io, err)
+    printstyled(io, typeof(err), color=Base.error_color())
     printstyled(io, "\n      message: ", err.message, color=Base.error_color())
     if !isnothing(err.locations) && !isempty(err.locations)
         if length(err.locations) == 1
@@ -33,5 +34,17 @@ function Base.show(io::IO, ::MIME"text/plain", err::ValidationError)
                 printstyled(io, "\n               $(err.locations[i])", color=Base.error_color())
             end
         end
+    end
+end
+
+struct ValidationException <: Exception
+    errors::Vector{ValidationError}
+end
+function Base.showerror(io::IO, ex::ValidationException)
+    printstyled(io, "Validation Failed\n", color=Base.error_color(), bold=true)
+    for err in ex.errors
+        print(io, "\n")
+        print_error(io, err)
+        print(io, "\n")
     end
 end

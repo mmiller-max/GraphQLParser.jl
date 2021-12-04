@@ -2,6 +2,8 @@ module GraphQLParser
 
 using Parsers
 
+export is_valid_executable_document, validate_executable_document
+
 include("utils.jl")
 include("strings.jl")
 include("types.jl")

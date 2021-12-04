@@ -1,12 +1,33 @@
 """
+    is_valid_executable_document(str::String; throw_on_error=false)
+
+Returns a `Bool` indicating whether the document described by `str` is valid.
+
+The document is parsed and some validation performed.
+For further information see [`validate_executable_document`](@ref) and package documentation.
+
+To throw an exception if a validation error is found, set `throw_on_error` to `true`.
+(Note, parsing errors will always throw an exception).
+
+To retrieve a list of validation errors in the document, use [`validate_executable_document`](@ref) instead.
+"""
+function is_valid_executable_document(str::String; throw_on_error=false)
+    errors = validate_executable_document(str)
+    if throw_on_error && !isempty(errors)
+        throw(ValidationException(errors))
+    end
+    return isempty(errors)
+end
+
+"""
     validate_executable_document(str::String)
 
-Validate the GraphQL executable document described by `str` against the GraphQL specification.
+Return a list of validation errors in the GraphQL executable document described by `str`.
 
-Firstly the document will be parsed with any parsing errors being immediately reported.
+Firstly the document will be parsed with any parsing errors being immediately thrown.
 
-Secondly, a parsed document will be validated against **some** of the specification with all validation errors being reported.
-See the documentation for a full description of what validation is performed.
+Secondly, the parsed document will be validated against **some** of the specification with all validation errors being returned.
+See the package documentation for a full description of what validation is performed.
 """
 validate_executable_document(str::String) = validate(parse(str))
 
