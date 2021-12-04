@@ -68,7 +68,7 @@ errors[2]
 The validation performed includes:
 
 - [5.2.1.1 Named operation uniqueness](https://spec.graphql.org/October2021/#sec-Named-Operation-Definitions)
-- [5.2.2.1 Lone anonymous pperation](https://spec.graphql.org/October2021/#sec-Anonymous-Operation-Definitions)
+- [5.2.2.1 Lone anonymous operation](https://spec.graphql.org/October2021/#sec-Anonymous-Operation-Definitions)
 - [5.5.1.1 Fragment name uniqueness](https://spec.graphql.org/October2021/#sec-Fragment-Name-Uniqueness)
 - [5.5.1.4 Fragments must be used](https://spec.graphql.org/October2021/#sec-Fragments-Must-Be-Used)
 - [5.5.2.1 Fragment spread target defined](https://spec.graphql.org/October2021/#sec-Fragment-spread-target-defined)
