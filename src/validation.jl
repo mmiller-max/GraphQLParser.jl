@@ -37,7 +37,7 @@ function validate_operations!(errors::Vector{Error}, doc::Document)
             push!(
                 errors,
                 RepeatedOperationDefinition(
-                    "There can only be one Operation named \"$(op.name))\".",
+                    "There can only be one Operation named \"$(op.name)\".",
                     [op.loc]
                 )
             )
