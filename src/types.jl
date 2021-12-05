@@ -170,7 +170,7 @@ function Base.:(==)(n1::T, n2:: T) where T <: GQLItem
     return true
 end
 
-function Base.hash(n::GQLItem, h::UInt)
+function Base.hash(n::T, h::UInt) where T <: GQLItem
     for name in fieldnames(T)
         if name != :loc
             h = hash(getproperty(n, name), h)
