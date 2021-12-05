@@ -586,11 +586,12 @@ function parse_value(buf, pos, line, column, len)
         value = Enum(value_str, Loc(start_line, start_column))
     elseif b == UInt('$')
         # variable
+        variable_location = Loc(line, column)
         pos += 1
         column += 1
         @eof_skip_ignored
         name, pos, line, column = parse_name(buf, pos, line, column, len)
-        value = Variable(name)
+        value = Variable(name, variable_location)
     else
         invalid("Could not parse value", buf, pos)
     end
@@ -613,6 +614,8 @@ function parse_input_object(buf, pos, line, column, len)
     object_fields = ObjectField[]
 
     while b != UInt('}')
+        field_start_line = line
+        field_start_column = column
         if !isnamestart(b)
             invalid("Expected name start character or '}'", buf, pos)
         end
@@ -630,7 +633,7 @@ function parse_input_object(buf, pos, line, column, len)
         @eof_skip_ignored
 
         value, pos, line, column = parse_value(buf, pos, line, column, len)
-        push!(object_fields, ObjectField(name, value, Loc(start_line, start_column)))
+        push!(object_fields, ObjectField(name, value, Loc(field_start_line, field_start_column)))
         @eof_skip_ignored
     end
 
