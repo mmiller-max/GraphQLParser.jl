@@ -188,6 +188,7 @@ function parse_directives(buf, pos, line, column, len)
     while pos <= len && getbyte(buf, pos) == UInt('@')
         directive, pos, line, column = parse_directive(buf, pos, line, column, len)
         push!(directives, directive)
+        @eof_skip_ignored
     end
     return directives, pos, line, column
 end
