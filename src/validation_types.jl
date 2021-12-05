@@ -10,7 +10,13 @@ errors = (
     :UnusedFragment,
     :RepeatedFragmentDefinition,
     :RepeatedOperationDefinition,
-    :AnonymousOperationNotAlone
+    :AnonymousOperationNotAlone,
+    :RepeatedVariableDefinition,
+    :RepeatedArgumentName,
+    :UnknownVariable,
+    :UnusedVariable,
+    :RepeatedDirectiveName,
+    :RepeatedInputObjectField,
 )
 for err in errors
     @eval begin

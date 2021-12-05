@@ -69,6 +69,13 @@ The validation performed includes:
 
 - [5.2.1.1 Named operation uniqueness](https://spec.graphql.org/October2021/#sec-Named-Operation-Definitions)
 - [5.2.2.1 Lone anonymous operation](https://spec.graphql.org/October2021/#sec-Anonymous-Operation-Definitions)
+- [5.4.2 Argument Uniqueness](https://spec.graphql.org/October2021/#sec-Argument-Uniqueness)
 - [5.5.1.1 Fragment name uniqueness](https://spec.graphql.org/October2021/#sec-Fragment-Name-Uniqueness)
 - [5.5.1.4 Fragments must be used](https://spec.graphql.org/October2021/#sec-Fragments-Must-Be-Used)
 - [5.5.2.1 Fragment spread target defined](https://spec.graphql.org/October2021/#sec-Fragment-spread-target-defined)
+- [5.6.3 Input Object Field Uniqueness](https://spec.graphql.org/October2021/#sec-Input-Object-Field-Uniqueness)
+- [5.7.3 Directives Are Unique Per Location](https://spec.graphql.org/October2021/#sec-Directives-Are-Unique-Per-Location)
+- [5.8.1 Variable Uniqueness](https://spec.graphql.org/October2021/#sec-Variable-Uniqueness)
+- [5.8.3 All Variable Uses Defined](https://spec.graphql.org/October2021/#sec-All-Variable-Uses-Defined)
+- [5.8.4 All Variables Used](https://spec.graphql.org/October2021/#sec-All-Variables-Used)
+
