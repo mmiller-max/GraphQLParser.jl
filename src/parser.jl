@@ -117,8 +117,6 @@ function parse_fragment_definition(buf, pos, line, column, len)
 end
 
 function parse_variable_definitions(buf, pos, line, column, len)
-    start_line = line
-    start_column = column
     b = getbyte(buf, pos)
     if b != UInt('(') # redundant check?
         invalid("Variable definitions must start with '('", buf, pos)
@@ -130,6 +128,8 @@ function parse_variable_definitions(buf, pos, line, column, len)
 
     variables_defs = VariableDefinition[]
     while b != UInt(')')
+        start_line = line
+        start_column = column
         if b != UInt('$')
             invalid("Variable name must start with '\$'", buf, pos)
         end
