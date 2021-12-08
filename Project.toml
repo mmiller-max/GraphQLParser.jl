@@ -1,7 +1,7 @@
 name = "GraphQLParser"
 uuid = "0ae10fbf-af58-4883-b66b-ff0ac82d20dd"
 authors = ["Mal Miller and contributors"]
-version = "0.1.1"
+version = "0.1.2"
 
 [deps]
 Parsers = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
