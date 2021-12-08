@@ -2,6 +2,7 @@
 
 *A Julia package to parse and validate GraphQL executable documents*
 
+[![Stable](https://img.shields.io/badge/docs-dev-blue.svg)](https://mmiller-max.github.io/GraphQLParser.jl/stable)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://mmiller-max.github.io/GraphQLParser.jl/dev)
 [![Build Status](https://github.com/mmiller-max/GraphQLParser.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/mmiller-max/GraphQLParser.jl/actions/workflows/CI.yml?query=branch%3Amain)
 [![Coverage](https://codecov.io/gh/mmiller-max/GraphQLParser.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/mmiller-max/GraphQLParser.jl)
@@ -11,7 +12,7 @@ Parses a GraphQL executable document (that is, a query string) and partially val
 Why only partial validation? Full validation (as per the GraphQL specification) requies knowledge of the schema, and GraphQLParser assumes no knowledge of the server and will therefore only perform some validation.
 
 For example, the validation provided by this package will fail if parsing fields, or if two variable definitions use the same name, but will not fail if a field is incorrectly named for a particularly query.
-For more information about what is covered, see the documentation.
+For more information about what is covered, see [the documentation](https://mmiller-max.github.io/GraphQLParser.jl/stable/#Validation).
 
 ## Installation
 
