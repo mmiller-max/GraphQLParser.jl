@@ -55,7 +55,7 @@ function validate_variable_definitions!(errors, var_defs::Vector{VariableDefinit
             push!(
                 errors,
                 UnusedVariable(
-                    "Variable \"\$(var_def.name\" is never used in operation \"$(op.name)\".",
+                    "Variable \"$(var_def.name)\" is never used in operation \"$(op.name)\".",
                     [var_def.loc, op.loc]
                 )
             )
