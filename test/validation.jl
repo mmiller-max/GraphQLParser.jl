@@ -456,4 +456,38 @@ end
     """
     errors = GraphQLParser.validate_executable_document(str)
     @test only(errors) isa GraphQLParser.RepeatedInputObjectField
+    @testset "Issue #7" begin
+        # ObjectValue with variable was failing validation
+        doc = GraphQLParser.parse(
+            """query SomeQuery(\$foo: String!) {
+                table(where: {foo: {_eq: \$foo}}) {
+                foo
+                }
+            }
+            """
+        )
+        @test isempty(GraphQLParser.validate(doc))
+
+        # ListValue with variable was failing validation
+        doc = GraphQLParser.parse(
+            """query SomeQuery(\$foo: String!) {
+                table(where: {foo: [{_eq: \$foo}]}) {
+                foo
+                }
+            }
+            """
+        )
+        @test isempty(GraphQLParser.validate(doc))
+
+        # Check all ListValue types pass validation
+        doc = GraphQLParser.parse(
+            """query SomeQuery(\$foo: String!){
+                table(where: [{}, 1, 1.0, "String", ENUM, null, [1.0, \$foo]]) {
+                foo
+                }
+            }
+            """
+        )
+        @test isempty(GraphQLParser.validate(doc))
+    end
 end

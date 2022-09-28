@@ -139,6 +139,50 @@ function validate_directive_uniqueness!(errors, directives::Vector{Directive})
     return errors
 end
 
+function validate_value!(errors, used_variables, value::Union{Int, Float64, Bool, String, Nothing, Enum}, op::Operation)
+    # These are literal values so no validation required
+    return errors
+end
+function validate_value!(errors, used_variables, list_value::Vector, op::Operation)
+    for value in list_value
+        validate_value!(errors, used_variables, value, op)
+    end
+    return errors
+end
+function validate_value!(errors, used_variables, value::Variable, op::Operation)
+    if value isa Variable
+        var = value
+        if isnothing(op.variable_definitions) || !any(==(var.name), (def.name for def in op.variable_definitions))
+            push!(
+                errors,
+                UnknownVariable(
+                    "Variable \"\$$(var.name)\" is not defined by operation \"$(op.name)\".",
+                    [var.loc, op.loc]
+                )
+            )
+        end
+        push!(used_variables, var.name)
+    end
+    return errors
+end
+function validate_value!(errors, used_variables, input_object::InputObject, op::Operation)
+    field_names = (field.name for field in input_object.object_fields)
+    for field in unique(x -> x.name, input_object.object_fields)
+        if count(==(field.name), field_names) > 1
+            push!(
+                errors,
+                RepeatedInputObjectField(
+                    "There can only be one input object field named \"$(field.name)\".",
+                    [f.loc for f in input_object.object_fields if f.name == field.name]
+                )
+            )
+        end
+    end
+    validate_arguments!(errors, used_variables, input_object.object_fields, op)
+    return errors
+end
+
+
 validate_arguments!(errors, used_variables, ::Nothing, op::Operation) = errors
 function validate_arguments!(errors, used_variables, fragment::Union{FragmentDefinition, InlineFragment}, op::Operation)
     validate_arguments!(errors, used_variables, fragment.directives, op)
@@ -162,33 +206,13 @@ function validate_arguments!(errors, used_variables, arguments::Vector{Argument}
                 )
             )
         end
-        if argument.value isa Variable
-            var = argument.value
-            if isnothing(op.variable_definitions) || !any(==(var.name), (def.name for def in op.variable_definitions))
-                push!(
-                    errors,
-                    UnknownVariable(
-                        "Variable \"\$$(var.name)\" is not defined by operation \"$(op.name)\".",
-                        [var.loc, op.loc]
-                    )
-                )
-            end
-            push!(used_variables, var.name)
-        elseif argument.value isa InputObject
-            input_object = argument.value
-            field_names = (field.name for field in input_object.object_fields)
-            for field in unique(x -> x.name, input_object.object_fields)
-                if count(==(field.name), field_names) > 1
-                    push!(
-                        errors,
-                        RepeatedInputObjectField(
-                            "There can only be one input object field named \"$(field.name)\".",
-                            [f.loc for f in input_object.object_fields if f.name == field.name]
-                        )
-                    )
-                end
-            end
-        end
+        validate_value!(errors, used_variables, argument.value, op)
+    end
+    return errors
+end
+function validate_arguments!(errors, used_variables, object_fields::Vector{ObjectField}, op::Operation)
+    for object_field in object_fields
+        validate_value!(errors, used_variables, object_field.value, op)
     end
     return errors
 end
